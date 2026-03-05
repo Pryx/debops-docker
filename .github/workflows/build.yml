@@ -43,7 +43,7 @@ jobs:
             ENTRIES=$(echo "$ENTRIES" | jq --argjson e "$ENTRY" '. + [$e]')
           done
 
-          echo "matrix=$(jq -n --argjson e "$ENTRIES" '{"include":$e}')" \
+          echo "matrix=$(jq -cn --argjson e "$ENTRIES" '{"include":$e}')" \
             >> $GITHUB_OUTPUT
 
   build:
