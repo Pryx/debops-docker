@@ -64,11 +64,12 @@ ENV USER=ansible \
     PATH="/home/ansible/.local/bin:$PATH"
 
 RUN if [ "$DEBOPS_VERSION" = "master" ]; then \
-        pipx install --include-deps \
-            "debops[ansible] @ git+https://github.com/debops/debops.git@master"; \
+        pipx install \
+            "debops @ git+https://github.com/debops/debops.git@master"; \
     else \
-        pipx install --include-deps "debops[ansible]==${DEBOPS_VERSION#v}"; \
-    fi
+        pipx install "debops==${DEBOPS_VERSION#v}"; \
+    fi \
+    && pipx inject --include-apps debops "ansible-core<2.18.1"
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]
 CMD ["/bin/bash"]
