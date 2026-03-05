@@ -55,23 +55,35 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Log in to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: Build and push
+      - name: Format tags
+        id: tags
         run: |
           TAGS=""
           IFS=',' read -ra TAG_LIST <<< "${{ matrix.tags }}"
           for tag in "${TAG_LIST[@]}"; do
-            TAGS="$TAGS --tag $IMAGE:$tag"
+            TAGS="${TAGS}${IMAGE}:${tag}"$'\n'
           done
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-          docker build $TAGS \
-            --build-arg DEBOPS_VERSION=${{ matrix.debops_version }} .
-
-          for tag in "${TAG_LIST[@]}"; do
-            docker push $IMAGE:$tag
-          done
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: DEBOPS_VERSION=${{ matrix.debops_version }}
