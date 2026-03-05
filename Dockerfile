@@ -1,7 +1,12 @@
 # Set up an Ansible Controller with DebOps support as a Docker container
 #
+# Originally created by:
 # Copyright (C) 2017-2019 Maciej Delmanowski <drybjed@gmail.com>
 # Copyright (C) 2017-2019 DebOps <https://debops.org/>
+#
+# Maintained by:
+# Copyright (C) 2024 Vojtěch Sajdl <vojtech@sajdl.com>
+#
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 
@@ -19,8 +24,9 @@
 
 FROM debian:bookworm-slim AS builder
 
-LABEL maintainer="Maciej Delmanowski <drybjed@gmail.com>" \
-      project="DebOps" homepage="https://debops.org/"
+LABEL maintainer="Vojtěch Sajdl <vojtech@sajdl.com>" \
+      description="Unofficial DebOps Docker image" \
+      homepage="https://github.com/pryx/debops-docker"
 
 ARG DEBOPS_VERSION=master
 
@@ -45,8 +51,9 @@ RUN make man wheel-quiet
 
 FROM debian:bookworm-slim
 
-LABEL maintainer="Maciej Delmanowski <drybjed@gmail.com>" \
-      project="DebOps" homepage="https://debops.org/"
+LABEL maintainer="Vojtěch Sajdl <vojtech@sajdl.com>" \
+      description="Unofficial DebOps Docker image" \
+      homepage="https://github.com/pryx/debops-docker"
 
 RUN apt-get -q update \
     && DEBIAN_FRONTEND=noninteractive apt-get \

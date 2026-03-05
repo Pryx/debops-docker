@@ -1,6 +1,7 @@
 # DebOps Docker Image
 
 > **Disclaimer:** This is an unofficial Docker image and is not affiliated with or endorsed by the DebOps project.
+> Original Dockerfile created by [Maciej Delmanowski](https://github.com/drybjed) and the DebOps project.
 
 A Docker image for running [DebOps](https://debops.org/) on Debian 12 (Bookworm).
 
