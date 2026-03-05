@@ -4,12 +4,53 @@ on:
   push:
     branches:
       - main
-    tags:
-      - '*'
+  workflow_dispatch:
+
+env:
+  IMAGE: pryx/debops
+  # Space-separated list of DebOps versions to build.
+  # Use 'main' for the master branch → published as 'unstable'.
+  # Versioned entries (e.g. v3.2.5) → published as 3.2.5, 3.2, 3.
+  # The highest version automatically also gets the 'latest' tag.
+  DEBOPS_VERSIONS: "main v3.2.5"
 
 jobs:
-  build-and-push:
+  setup:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.compute.outputs.matrix }}
+    steps:
+      - name: Compute build matrix
+        id: compute
+        run: |
+          # Find the highest semver version to assign 'latest'
+          LATEST=$(echo "$DEBOPS_VERSIONS" | tr ' ' '\n' \
+            | grep -v '^main$' | sed 's/^v//' | sort -V | tail -1)
+
+          ENTRIES="[]"
+          for v in $DEBOPS_VERSIONS; do
+            if [ "$v" = "main" ]; then
+              ENTRY=$(jq -n '{"debops_version":"master","tags":"unstable"}')
+            else
+              CLEAN="${v#v}"
+              MAJOR=$(echo "$CLEAN" | cut -d. -f1)
+              MINOR=$(echo "$CLEAN" | cut -d. -f1-2)
+              TAGS="$CLEAN,$MINOR,$MAJOR"
+              [ "$CLEAN" = "$LATEST" ] && TAGS="$TAGS,latest"
+              ENTRY=$(jq -n --arg dv "$v" --arg t "$TAGS" \
+                '{"debops_version":$dv,"tags":$t}')
+            fi
+            ENTRIES=$(echo "$ENTRIES" | jq --argjson e "$ENTRY" '. + [$e]')
+          done
+
+          echo "matrix=$(jq -n --argjson e "$ENTRIES" '{"include":$e}')" \
+            >> $GITHUB_OUTPUT
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -20,20 +61,17 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: Set image tags and build args
-        id: meta
-        run: |
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            echo "tags=pryx/debops:$GITHUB_REF_NAME,pryx/debops:latest" >> $GITHUB_OUTPUT
-            echo "debops_version=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
-          else
-            echo "tags=pryx/debops:latest" >> $GITHUB_OUTPUT
-            echo "debops_version=master" >> $GITHUB_OUTPUT
-          fi
-
       - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          build-args: DEBOPS_VERSION=${{ steps.meta.outputs.debops_version }}
+        run: |
+          TAGS=""
+          IFS=',' read -ra TAG_LIST <<< "${{ matrix.tags }}"
+          for tag in "${TAG_LIST[@]}"; do
+            TAGS="$TAGS --tag $IMAGE:$tag"
+          done
+
+          docker build $TAGS \
+            --build-arg DEBOPS_VERSION=${{ matrix.debops_version }} .
+
+          for tag in "${TAG_LIST[@]}"; do
+            docker push $IMAGE:$tag
+          done
