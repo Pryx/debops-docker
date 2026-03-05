@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONTROLLER="/home/ansible/src/controller"
+REQUIREMENTS="${CONTROLLER}/ansible/collections/requirements.yml"
+
+# ── Project detection ────────────────────────────────────────────────────────
+if [[ ! -d "${CONTROLLER}/ansible" ]]; then
+    echo "==> No DebOps project found at ${CONTROLLER}, skipping setup." >&2
+    exec "$@"
+fi
+
+cd "${CONTROLLER}"
+
+# ── Ansible collections ──────────────────────────────────────────────────────
+if [[ -f "${REQUIREMENTS}" ]]; then
+    echo "==> Installing Ansible collections..." >&2
+    ansible-galaxy collection install \
+        -r "${REQUIREMENTS}" \
+        --collections-path ansible/collections
+else
+    echo "==> No collections requirements found, skipping." >&2
+fi
+
+# ── Done ─────────────────────────────────────────────────────────────────────
+echo "==> Ready." >&2
+exec "$@"
