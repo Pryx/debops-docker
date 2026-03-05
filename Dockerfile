@@ -14,40 +14,7 @@
 #
 #     docker build -t debops .
 #     docker run --name <container> -h controller.example.org -i -t debops
-#
-#     # Refresh APT cache
-#     sudo apt update
-#
-#     cd src/controller
-#     debops run common --diff
 
-
-FROM debian:bookworm-slim AS builder
-
-LABEL maintainer="Vojtěch Sajdl <vojtech@sajdl.com>" \
-      description="Unofficial DebOps Docker image" \
-      homepage="https://github.com/pryx/debops-docker"
-
-ARG DEBOPS_VERSION=master
-
-RUN apt-get -q update \
-    && DEBIAN_FRONTEND=noninteractive apt-get \
-       --no-install-recommends -yq install \
-       python3-pip \
-       python3-setuptools \
-       python3-toml \
-       python3-wheel \
-       python3-pypandoc \
-       python3-sphinx \
-       python3-sphinx-rtd-theme \
-       pandoc \
-       make \
-       git \
-    && git clone --depth 1 --branch ${DEBOPS_VERSION} \
-       https://github.com/debops/debops.git /root/src/debops
-
-WORKDIR /root/src/debops
-RUN make man wheel-quiet
 
 FROM debian:bookworm-slim
 
@@ -55,41 +22,31 @@ LABEL maintainer="Vojtěch Sajdl <vojtech@sajdl.com>" \
       description="Unofficial DebOps Docker image" \
       homepage="https://github.com/pryx/debops-docker"
 
+ARG DEBOPS_VERSION=master
+
+# Build dependencies are required to compile some Python packages (e.g. python-ldap)
 RUN apt-get -q update \
     && DEBIAN_FRONTEND=noninteractive apt-get \
        --no-install-recommends -yq install \
+       build-essential \
+       python3-dev \
+       python3-venv \
+       pipx \
+       libffi-dev \
+       libssl-dev \
+       libsasl2-dev \
+       libldap2-dev \
        iproute2 \
        iputils-ping \
        vim \
        openssh-client \
-       python3-apt \
-       python3-cryptography \
-       python3-distro \
-       python3-dnspython \
-       python3-future \
-       python3-ldap \
-       python3-netaddr \
-       python3-pip \
-       python3-setuptools \
-       python3-toml \
-       python3-wheel \
        procps \
        sudo \
        tree \
        sshpass \
-       make \
        git \
        man-db \
-    && pip3 install --break-system-packages ansible \
-    && echo "Cleaning up cache directories..." \
     && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb /root/.cache/*
-
-COPY --from=builder /root/src/debops/dist /root/src/debops/dist
-COPY docker-entrypoint /usr/local/bin/docker-entrypoint
-
-RUN pip3 install --break-system-packages /root/src/debops/dist/debops-*.whl \
-    && chmod +x /usr/local/bin/docker-entrypoint \
-    && rm -rf /root/src /root/.cache/*
 
 RUN groupadd --system admins \
     && echo "%admins ALL = (ALL:ALL) NOPASSWD: SETENV: ALL" > /etc/sudoers.d/admins \
@@ -97,13 +54,21 @@ RUN groupadd --system admins \
     && useradd --user-group --create-home --shell /bin/bash \
        --home-dir /home/ansible --groups admins ansible
 
-# Switch to the unprivileged user
+COPY docker-entrypoint /usr/local/bin/docker-entrypoint
+RUN chmod +x /usr/local/bin/docker-entrypoint
+
 USER ansible
 WORKDIR /home/ansible
 
-# Docker does not set expected environment variables by default
-# Ref: https://stackoverflow.com/questions/54411218/
-ENV USER=ansible
+ENV USER=ansible \
+    PATH="/home/ansible/.local/bin:$PATH"
+
+RUN if [ "$DEBOPS_VERSION" = "master" ]; then \
+        pipx install --include-deps \
+            "debops[ansible] @ git+https://github.com/debops/debops.git@master"; \
+    else \
+        pipx install --include-deps "debops[ansible]==${DEBOPS_VERSION#v}"; \
+    fi
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]
 CMD ["/bin/bash"]
