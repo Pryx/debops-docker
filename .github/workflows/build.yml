@@ -12,7 +12,7 @@ env:
   # Use 'main' for the master branch → published as 'unstable'.
   # Versioned entries (e.g. v3.2.5) → published as 3.2.5, 3.2, 3.
   # The highest version automatically also gets the 'latest' tag.
-  DEBOPS_VERSIONS: "main v3.2.5"
+  DEBOPS_VERSIONS: "main v3.3.0 v3.2.6"
 
 jobs:
   setup:
