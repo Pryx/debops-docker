@@ -69,7 +69,7 @@ RUN if [ "$DEBOPS_VERSION" = "master" ]; then \
     else \
         pipx install "debops==${DEBOPS_VERSION#v}"; \
     fi \
-    && pipx inject --include-apps debops "ansible>=11,<12" "ansible-core<2.18.1" "netaddr" "jmespath"
+    && pipx inject --include-apps debops "ansible>=11,<12" "ansible-core<2.18.1" "netaddr" "jmespath" "passlib" "dnspython"
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]
 CMD ["/bin/bash"]
