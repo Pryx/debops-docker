@@ -1,0 +1,45 @@
+name: Update DebOps versions
+
+on:
+  schedule:
+    - cron: "16 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update DEBOPS_VERSIONS
+        id: update
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Number of newest minor series (e.g. 3.4, 3.3) to keep building.
+          KEEP_SERIES: "3"
+        run: |
+          NEW=$(.github/scripts/update-versions.sh)
+          echo "versions=$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: Open pull request
+        if: steps.update.outputs.versions != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSIONS: ${{ steps.update.outputs.versions }}
+        run: |
+          BRANCH=auto/debops-versions
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add DEBOPS_VERSIONS
+          git commit -m "chore: Update DEBOPS_VERSIONS to $VERSIONS"
+          git push --force origin "$BRANCH"
+          if [ -z "$(gh pr list --head "$BRANCH" --json number --jq '.[]')" ]; then
+            gh pr create --base main --head "$BRANCH" \
+              --title "chore: Update DEBOPS_VERSIONS to $VERSIONS" \
+              --body "Automated update from new DebOps releases. Merging triggers the image build."
+          fi

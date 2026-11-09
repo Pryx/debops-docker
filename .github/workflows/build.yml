@@ -8,11 +8,6 @@ on:
 
 env:
   IMAGE: pryx/debops
-  # Space-separated list of DebOps versions to build.
-  # Use 'main' for the master branch → published as 'unstable'.
-  # Versioned entries (e.g. v3.2.5) → published as 3.2.5, 3.2, 3.
-  # The highest version automatically also gets the 'latest' tag.
-  DEBOPS_VERSIONS: "main v3.3.0 v3.2.6"
 
 jobs:
   setup:
@@ -20,9 +15,16 @@ jobs:
     outputs:
       matrix: ${{ steps.compute.outputs.matrix }}
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Compute build matrix
         id: compute
         run: |
+          # DEBOPS_VERSIONS file: space-separated list of versions to build.
+          # 'main' -> published as 'unstable'; vX.Y.Z -> X.Y.Z, X.Y, X;
+          # the highest version also gets 'latest'.
+          DEBOPS_VERSIONS=$(cat DEBOPS_VERSIONS)
           # Find the highest semver version to assign 'latest'
           LATEST=$(echo "$DEBOPS_VERSIONS" | tr ' ' '\n' \
             | grep -v '^main$' | sed 's/^v//' | sort -V | tail -1)
