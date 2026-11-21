@@ -19,12 +19,25 @@ before dropping into the shell. If no project is found, it starts normally witho
 
 ## Versioning
 
-Image tags correspond to DebOps releases:
+The image tags follow a set of rules rather than a fixed version list:
 
-| Image tag | DebOps version |
-|-----------|---------------|
-| `latest`  | master branch |
-| `v3.2.0`  | DebOps 3.2.0  |
+| Image tag | Contents |
+|-----------|----------|
+| `unstable` | DebOps `master` branch |
+| `X.Y.Z` | That DebOps release, for example `3.4.1` |
+| `X.Y` | Latest patch release in the `X.Y` minor series |
+| `X` | Latest patch release in the `X` major series |
+| `latest` | Highest stable DebOps version currently being published |
+
+For a version such as `v3.4.1`, the published tags are `3.4.1`, `3.4`,
+and `3`. The `v` prefix is the DebOps release-tag format; it is omitted
+from Docker image tags.
+
+The versions to publish are maintained automatically in `DEBOPS_VERSIONS`.
+This is the latest patch release from each of the newest stable minor
+series, plus `main`. When a newer DebOps release or patch is published,
+the existing tags move to the appropriate new build; no README version
+table needs to be updated.
 
 ## Building locally
 
@@ -40,7 +53,9 @@ docker build --build-arg DEBOPS_VERSION=v3.2.0 -t debops:v3.2.0 .
 
 Images are built and pushed automatically via GitHub Actions:
 
-- Push to `main` → `pryx/debops:latest` (DebOps master)
-- Push a tag (e.g. `v3.2.0`) → `pryx/debops:v3.2.0` + `pryx/debops:latest`
+- Push to `main` or run the workflow manually → rebuild every version in
+  `DEBOPS_VERSIONS` and apply the tag rules described above
+- The scheduled update workflow keeps `DEBOPS_VERSIONS` on the newest stable
+  releases and opens a pull request when it changes
 
 Required GitHub secrets: `DOCKER_USERNAME`, `DOCKER_ACCESS_TOKEN`.
